@@ -3,6 +3,7 @@ import { configSchematics, globalConfigSchematics } from "./config";
 import {
   ExternalApiError,
   chatEndpoint,
+  listExternalModelIds,
   requestHeaders,
   toOpenAIMessages,
   type ExternalConnection,
@@ -16,6 +17,8 @@ interface ToolCallState {
   arguments: string;
   started: boolean;
 }
+
+const MAX_MODEL_IDS_IN_ERROR = 20;
 
 function asObject(value: unknown): JsonObject | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -51,6 +54,27 @@ export async function* parseSse(response: Response): AsyncGenerator<unknown> {
     }
     if (done) break;
   }
+}
+
+export async function resolveExternalModel(
+  configuredModel: string,
+  connection: ExternalConnection,
+  signal?: AbortSignal,
+): Promise<string> {
+  const model = configuredModel.trim();
+  if (model !== "") return model;
+
+  const models = await listExternalModelIds(connection, signal);
+  if (models.length === 1) return models[0]!;
+
+  const visible = models.slice(0, MAX_MODEL_IDS_IN_ERROR);
+  const suffix =
+    models.length > visible.length
+      ? `, … (+${models.length - visible.length})`
+      : "";
+  throw new ExternalApiError(
+    `Set Model ID in the generator configuration. Available models: ${visible.join(", ")}${suffix}`,
+  );
 }
 
 function toolPayload(ctl: GeneratorController): unknown[] | undefined {
@@ -204,12 +228,16 @@ export async function generate(
     endpoint: globalConfig.get("externalEndpoint"),
     apiKey: globalConfig.get("externalApiKey"),
   };
-  const model = config.get("externalModel").trim();
   const controller = new AbortController();
   ctl.onAborted(() => controller.abort());
+  const model = await resolveExternalModel(
+    config.get("externalModel"),
+    connection,
+    controller.signal,
+  );
   const tools = toolPayload(ctl);
   const payload = {
-    ...(model === "" ? {} : { model }),
+    model,
     messages: toOpenAIMessages(history),
     temperature: config.get("temperature"),
     max_tokens: config.get("maxOutputTokens"),

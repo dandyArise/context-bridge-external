@@ -52,6 +52,10 @@ export function chatEndpoint(connection: ExternalConnection): URL {
   return new URL("chat/completions", normalizeEndpoint(connection.endpoint));
 }
 
+export function modelsEndpoint(connection: ExternalConnection): URL {
+  return new URL("models", normalizeEndpoint(connection.endpoint));
+}
+
 export function requestHeaders(connection: ExternalConnection): Headers {
   const headers = new Headers({
     Accept: "application/json",
@@ -61,6 +65,50 @@ export function requestHeaders(connection: ExternalConnection): Headers {
     headers.set("Authorization", `Bearer ${connection.apiKey.trim()}`);
   }
   return headers;
+}
+
+function asObject(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+export async function listExternalModelIds(
+  connection: ExternalConnection,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  const response = await fetch(modelsEndpoint(connection), {
+    headers: requestHeaders(connection),
+    ...(signal === undefined ? {} : { signal }),
+  });
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (error) {
+    throw new ExternalApiError(
+      "Model discovery returned invalid JSON.",
+      response.status,
+      {
+        cause: error,
+      },
+    );
+  }
+  if (!response.ok) {
+    throw new ExternalApiError(
+      `Model discovery failed with HTTP ${response.status}.`,
+      response.status,
+    );
+  }
+  const root = asObject(body);
+  const data = Array.isArray(root?.data) ? root.data : [];
+  const ids = data.flatMap((entry) => {
+    const id = asObject(entry)?.id;
+    return typeof id === "string" && id.trim() !== "" ? [id.trim()] : [];
+  });
+  if (ids.length === 0) {
+    throw new ExternalApiError("Model discovery returned no model IDs.");
+  }
+  return [...new Set(ids)];
 }
 
 export function toOpenAIMessages(history: Chat | ChatMessage[]): unknown[] {

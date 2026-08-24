@@ -30,9 +30,9 @@ export const configSchematics = createConfigSchematics()
     "externalModel",
     "string",
     {
-      displayName: "External model (optional)",
+      displayName: "Model ID",
       subtitle:
-        "Exact /v1/models ID. Empty lets the provider choose its default model.",
+        "Exact ID returned by /v1/models. If empty, one advertised model is selected automatically; multiple models are listed in an error.",
       placeholder: "Qwen/Qwen3-32B",
     },
     "",
