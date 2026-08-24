@@ -1,7 +1,7 @@
 {
-  "name": "lms-plugin-context-bridge-external",
+  "name": "lms-plugin-openai-compatible-generator",
   "version": "0.1.0",
-  "description": "OpenAI-compatible external generator companion for Context Bridge.",
+  "description": "OpenAI-compatible LM Studio generator for local or external model servers.",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {

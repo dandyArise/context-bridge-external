@@ -7,9 +7,9 @@ export const globalConfigSchematics = createConfigSchematics()
     {
       displayName: "External OpenAI-compatible endpoint",
       subtitle: "Base URL including /v1.",
-      placeholder: "http://127.0.0.1:8000/v1",
+      placeholder: "http://127.0.0.1:1234/v1",
     },
-    "http://127.0.0.1:8000/v1",
+    "http://127.0.0.1:1234/v1",
   )
   .field(
     "externalApiKey",
